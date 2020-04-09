@@ -6,6 +6,7 @@
 
 // TODO: set AAD client ID value in the client_id file
 client_id = Text.FromBinary(Extension.Contents("client_id")); 
+client_secret = Text.FromBinary(Extension.Contents("client_secret")); 
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
 authorize_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize";
@@ -22,18 +23,18 @@ windowHeight = 1024;
 // https://developer.microsoft.com/en-us/graph/docs/authorization/permission_scopes 
 scope_prefix = "https://graph.microsoft.com/";
 scopes = {
-    "User.ReadWrite",
-    "Contacts.Read",
-    "User.ReadBasic.All",
-    "Calendars.ReadWrite",
-    "Mail.ReadWrite",
-    "Mail.Send",
-    "Contacts.ReadWrite",
-    "Files.ReadWrite",
-    "Tasks.ReadWrite",
-    "People.Read",
-    "Notes.ReadWrite.All",
-    "Sites.Read.All"
+//     "User.ReadWrite",
+//     "Contacts.Read",
+//     "User.ReadBasic.All",
+//     "Calendars.ReadWrite",
+//     "Mail.ReadWrite",
+//     "Mail.Send",
+//     "Contacts.ReadWrite",
+//     "Files.ReadWrite",
+//     "Tasks.ReadWrite",
+//     "People.Read",
+//     "Notes.ReadWrite.All",
+//     "Sites.Read.All"
 };
 
 //
@@ -42,7 +43,7 @@ scopes = {
 [DataSource.Kind="MyGraph", Publish="MyGraph.UI"]
 shared MyGraph.Feed = () =>
     let
-        source = OData.Feed("https://graph.microsoft.com/v1.0/me/", null, [ ODataVersion = 4, MoreColumns = true ])
+        source = OData.Feed("https://graph.microsoft.com/v1.0/auditLogs/signIns", null, [ ODataVersion = 4, MoreColumns = true ])
     in
         source;
 
@@ -115,7 +116,8 @@ StartLogin = (resourceUrl, state, display) =>
             client_id = client_id,  
             redirect_uri = redirect_uri,
             state = state,
-            scope = "offline_access " & GetScopeString(scopes, scope_prefix),
+           // scope = "offline_access " & GetScopeString(scopes, scope_prefix),
+            scope = "offline_access openid",
             response_type = "code",
             response_mode = "query",
             login = "login"
@@ -143,10 +145,10 @@ FinishLogin = (context, callbackUri, state) =>
         parts = Uri.Parts(callbackUri)[Query],
         // if the query string contains an "error" field, raise an error
         // otherwise call TokenMethod to exchange our code for an access_token
-        result = if (Record.HasFields(parts, {"error", "error_description"})) then 
-                    error Error.Record(parts[error], parts[error_description], parts)
+		result = if (Record.HasFields(parts, {"error", "error_description"})) then 
+                  error Error.Record(parts[error], parts[error_description], parts)
                  else
-                    TokenMethod("authorization_code", "code", parts[code])
+			TokenMethod("authorization_code", "code", parts[code])
     in
         result;
 
@@ -160,11 +162,14 @@ Logout = (token) => logout_uri;
 // grantType:  Maps to the "grant_type" query parameter.
 // tokenField: The name of the query parameter to pass in the code.
 // code:       Is the actual code (authorization_code or refresh_token) to send to the service.
+
 TokenMethod = (grantType, tokenField, code) =>
     let
         queryString = [
             client_id = client_id,
-            scope = "offline_access " & GetScopeString(scopes, scope_prefix),
+			client_secret = client_secret,
+           // scope = "offline_access " & GetScopeString(scopes, scope_prefix),
+            scope = "offline_access openid",
             grant_type = grantType,
             redirect_uri = redirect_uri
         ],
